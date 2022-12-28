@@ -76,9 +76,7 @@ def check_response(response) -> list:
 
 
 def parse_status(homework: dict) -> str:
-    """Извлекает из информации о конкретной
-    домашней работе статус этой работы.
-    """
+    """Извлекает статус из информации о конкретной домашней работе."""
     status = homework['status']
     if status not in HOMEWORK_VERDICTS:
         raise StatusError
