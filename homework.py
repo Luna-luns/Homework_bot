@@ -3,7 +3,8 @@ import time
 import requests
 import telegram
 import logging
-from exeptions import *
+from exeptions import EnvironmentVariableError, \
+    AccessError, MyRequestError, StatusError, SendingError
 from dotenv import load_dotenv
 from telegram import Bot
 from http import HTTPStatus
@@ -65,18 +66,19 @@ def get_api_answer(timestamp: int) -> dict:
 def check_response(response) -> list:
     """Проверяет ответ API на соответствие документации."""
     if not isinstance(response, dict):
-        raise TypeError(f'Ответ API не является словарем.')
+        raise TypeError('Ответ API не является словарем.')
     elif 'homeworks' not in response or 'current_date' not in response:
         raise KeyError
     elif not isinstance(response['homeworks'], list):
-        raise TypeError(f'Ответ API не является списком.')
+        raise TypeError('Ответ API не является списком.')
 
     return response['homeworks']
 
 
 def parse_status(homework: dict) -> str:
     """Извлекает из информации о конкретной
-    домашней работе статус этой работы."""
+    домашней работе статус этой работы.
+    """
     status = homework['status']
     if status not in HOMEWORK_VERDICTS:
         raise StatusError
@@ -114,8 +116,8 @@ def main() -> None:
             else:
                 logging.debug('Отсутствие в ответе новых статусов')
         except AccessError as error:
-            logging.error(f'Сбой в работе программы: Эндпоинт {ENDPOINT} '
-                      f'недоступен. Код ответа API: {error.status}')
+            logging.error(f'Сбой в работе программы: Эндпоинт {ENDPOINT} \
+            недоступен. Код ответа API: {error.status}')
         except TypeError as error:
             logging.error(error.message)
         except KeyError:
