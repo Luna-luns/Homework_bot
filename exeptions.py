@@ -11,6 +11,16 @@ class AccessError(Exception):
         return 'Эндпоинт не доступен'
 
 
+class MyRequestError(Exception):
+    def __str__(self) -> str:
+        return 'Ошибка во время выполнения запроса'
+
+
 class StatusError(Exception):
     def __str__(self) -> str:
         return 'Такого статуса не существует'
+
+
+class SendingError(Exception):
+    def __str__(self) -> str:
+        return 'Сбой при отправке сообщения'

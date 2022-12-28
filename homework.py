@@ -38,7 +38,7 @@ def check_tokens() -> None:
         'TELEGRAM_CHAT_ID': TELEGRAM_CHAT_ID
     }
 
-    for key, value in tokens:
+    for key in tokens:
         if tokens[key] is None:
             logging.critical(
                 f'Отсутствует обязательная переменная окружения: {key}\n'
@@ -49,32 +49,39 @@ def check_tokens() -> None:
 
 def get_api_answer(timestamp: int) -> dict:
     """Делает запрос к эндпоинту API-сервиса."""
-    response = requests.get(ENDPOINT, headers=HEADERS, params=timestamp)
-    status = response.status_code
+    try:
+        response = requests.get(ENDPOINT, headers=HEADERS, params=timestamp)
+        status = response.status_code
 
-    if status != HTTPStatus.OK:
-        raise AccessError(status)
+        if status != HTTPStatus.OK:
+            raise AccessError(status)
+        return response.json()
+    except requests.RequestException as error:
+        logging.error(f'Сбой в работе программы: '
+                      f'Эндпоинт {ENDPOINT} недоступен.')
+        raise MyRequestError from error
 
-    return response.json()
 
-
-def check_response(response) -> dict:
+def check_response(response) -> list:
     """Проверяет ответ API на соответствие документации."""
-    if type(response) != dict:
-        raise TypeError
-    elif 'homeworks' and 'current_date' not in response:
+    if not isinstance(response, dict):
+        raise TypeError(f'Ответ API не является словарем.')
+    elif 'homeworks' not in response or 'current_date' not in response:
         raise KeyError
-    elif not response['homeworks']:
-        logging.debug('Отсутствие в ответе новых статусов')
+    elif not isinstance(response['homeworks'], list):
+        raise TypeError(f'Ответ API не является списком.')
 
-    return response['homeworks'][0]
+    return response['homeworks']
 
 
 def parse_status(homework: dict) -> str:
-    """Извлекает из информации о конкретной домашней работе статус этой работы."""
+    """Извлекает из информации о конкретной
+    домашней работе статус этой работы."""
     status = homework['status']
     if status not in HOMEWORK_VERDICTS:
         raise StatusError
+    elif 'homework_name' not in homework:
+        raise KeyError
     homework_name = homework['homework_name']
     verdict = HOMEWORK_VERDICTS[status]
 
@@ -83,10 +90,15 @@ def parse_status(homework: dict) -> str:
 
 def send_message(bot: Bot, message: str) -> None:
     """Отправляет сообщение в Telegram чат."""
-    bot.send_message(message, chat_id=TELEGRAM_CHAT_ID)
+    try:
+        bot.send_message(message, TELEGRAM_CHAT_ID)
+        logging.debug('Сообщение об изменении статуса отправленно в Telegram')
+    except telegram.error.TelegramError as error:
+        logging.error('Сбой при отправке сообщения в Telegram')
+        raise SendingError from error
 
 
-def main():
+def main() -> None:
     """Основная логика работы бота."""
     check_tokens()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
@@ -96,17 +108,23 @@ def main():
         try:
             response = get_api_answer(timestamp)
             homework = check_response(response)
-            message = parse_status(homework)
-            send_message(bot, message)
+            if homework:
+                message = parse_status(homework[0])
+                send_message(bot, message)
+            else:
+                logging.debug('Отсутствие в ответе новых статусов')
         except AccessError as error:
             logging.error(f'Сбой в работе программы: Эндпоинт {ENDPOINT} '
                       f'недоступен. Код ответа API: {error.status}')
-        except TypeError:
-            logging.error(f'Ответ API не является словарем.')
+        except TypeError as error:
+            logging.error(error.message)
         except KeyError:
             logging.error('Отсутствие ожидаемых ключей в ответе API')
         except StatusError:
-            logging.error('Неожиданный статус домашней работы, обнаруженный в ответе API')
+            logging.error('Неожиданный статус домашней работы, '
+                          'обнаруженный в ответе API')
+
+        time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
