@@ -10,10 +10,6 @@ from telegram import Bot
 from http import HTTPStatus
 
 load_dotenv()
-logging.basicConfig(
-    format='%(asctime)s %(levelname)s %(message)s',
-    level=logging.DEBUG
-)
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -38,7 +34,8 @@ def check_tokens() -> None:
         'TELEGRAM_TOKEN': TELEGRAM_TOKEN,
         'TELEGRAM_CHAT_ID': TELEGRAM_CHAT_ID
     }
-
+    # if not all(tokens.values()):
+    #     raise EnvironmentVariableError
     for key in tokens:
         if tokens[key] is None:
             logging.critical(
@@ -51,7 +48,8 @@ def check_tokens() -> None:
 def get_api_answer(timestamp: int) -> dict:
     """Делает запрос к эндпоинту API-сервиса."""
     try:
-        response = requests.get(ENDPOINT, headers=HEADERS, params=timestamp)
+        params = {'from_date': timestamp}
+        response = requests.get(url=ENDPOINT, headers=HEADERS, params=params)
         status = response.status_code
 
         if status != HTTPStatus.OK:
@@ -106,6 +104,7 @@ def main() -> None:
 
     while True:
         try:
+            logging.info('Запрос к эндпоинту API-сервиса')
             response = get_api_answer(timestamp)
             homework = check_response(response)
             if homework:
@@ -117,7 +116,7 @@ def main() -> None:
             logging.error(f'Сбой в работе программы: Эндпоинт {ENDPOINT} \
             недоступен. Код ответа API: {error.status}')
         except TypeError as error:
-            logging.error(error.message)
+            logging.error(error)
         except KeyError:
             logging.error('Отсутствие ожидаемых ключей в ответе API')
         except StatusError:
@@ -128,4 +127,8 @@ def main() -> None:
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)s %(message)s',
+        level=logging.INFO
+    )
     main()
