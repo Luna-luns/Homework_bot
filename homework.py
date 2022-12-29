@@ -53,6 +53,8 @@ def get_api_answer(timestamp: int) -> dict:
         status = response.status_code
 
         if status != HTTPStatus.OK:
+            logging.error(f'Сбой в работе программы: Эндпоинт {ENDPOINT} \
+            недоступен. Код ответа API: {status}')
             raise AccessError(status)
         return response.json()
     except requests.RequestException as error:
@@ -64,10 +66,13 @@ def get_api_answer(timestamp: int) -> dict:
 def check_response(response) -> list:
     """Проверяет ответ API на соответствие документации."""
     if not isinstance(response, dict):
+        logging.error('Ответ API не является словарем.')
         raise TypeError('Ответ API не является словарем.')
     elif 'homeworks' not in response or 'current_date' not in response:
+        logging.error('Отсутствие ожидаемых ключей в ответе API')
         raise KeyError
     elif not isinstance(response['homeworks'], list):
+        logging.error('Ответ API не является списком.')
         raise TypeError('Ответ API не является списком.')
 
     return response['homeworks']
@@ -77,6 +82,8 @@ def parse_status(homework: dict) -> str:
     """Извлекает статус из информации о конкретной домашней работе."""
     status = homework['status']
     if status not in HOMEWORK_VERDICTS:
+        logging.error('Неожиданный статус домашней работы, \
+        обнаруженный в ответе API')
         raise StatusError
     elif 'homework_name' not in homework:
         raise KeyError
@@ -112,16 +119,12 @@ def main() -> None:
                 send_message(bot, message)
             else:
                 logging.debug('Отсутствие в ответе новых статусов')
-        except AccessError as error:
-            logging.error(f'Сбой в работе программы: Эндпоинт {ENDPOINT} \
-            недоступен. Код ответа API: {error.status}')
-        except TypeError as error:
-            logging.error(error)
-        except KeyError:
-            logging.error('Отсутствие ожидаемых ключей в ответе API')
-        except StatusError:
-            logging.error('Неожиданный статус домашней работы, '
-                          'обнаруженный в ответе API')
+        except Exception as error:
+            message = f'Сбой в работе программы: {error}'
+            error_list = []
+            if error not in error_list:
+                error_list.append(error)
+                send_message(bot, message)
 
         time.sleep(RETRY_PERIOD)
 
@@ -129,6 +132,6 @@ def main() -> None:
 if __name__ == '__main__':
     logging.basicConfig(
         format='%(asctime)s %(levelname)s %(message)s',
-        level=logging.INFO
+        level=logging.DEBUG
     )
     main()

@@ -4,9 +4,6 @@ class EnvironmentVariableError(Exception):
 
 
 class AccessError(Exception):
-    def __int__(self, status: int) -> None:
-        self.status = status
-
     def __str__(self) -> str:
         return 'Эндпоинт не доступен'
 
