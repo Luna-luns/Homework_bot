@@ -34,8 +34,7 @@ def check_tokens() -> None:
         'TELEGRAM_TOKEN': TELEGRAM_TOKEN,
         'TELEGRAM_CHAT_ID': TELEGRAM_CHAT_ID
     }
-    # if not all(tokens.values()):
-    #     raise EnvironmentVariableError
+
     for key in tokens:
         if tokens[key] is None:
             logging.critical(
@@ -47,9 +46,13 @@ def check_tokens() -> None:
 
 def get_api_answer(timestamp: int) -> dict:
     """Делает запрос к эндпоинту API-сервиса."""
+    request_params = {
+        'url': ENDPOINT,
+        'headers': HEADERS,
+        'params': {'from_date': timestamp}
+    }
     try:
-        params = {'from_date': timestamp}
-        response = requests.get(url=ENDPOINT, headers=HEADERS, params=params)
+        response = requests.get(**request_params)
         status = response.status_code
 
         if status != HTTPStatus.OK:
